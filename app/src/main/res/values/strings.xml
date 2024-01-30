@@ -1,3 +1,10 @@
 <resources>
-    <string name="app_name">FirstApplicationCST2355</string>
+    <string name="app_name" translatable="false">FirstApplicationCST2355</string>
+    <string name="hello_world">Hello, World!</string>
+    <string name="toast_message">Label has been updated!</string>
+    <string name="switch_text">Switch on/off</string>
+    <string name="firstText">I Love Android</string>
+    <string name="buttonPressMe">Press Me</string>
+    <string name="checkBox">Check this out!</string>
+    <string name="imageButton" translatable="false">Flag</string>
 </resources>
