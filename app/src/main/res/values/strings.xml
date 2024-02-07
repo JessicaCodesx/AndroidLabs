@@ -7,4 +7,5 @@
     <string name="buttonPressMe">Press Me</string>
     <string name="checkBox">Check this out!</string>
     <string name="imageButton" translatable="false">Flag</string>
+    <string name="welcome_message">Welcome!</string>
 </resources>
