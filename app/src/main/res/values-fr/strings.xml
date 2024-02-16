@@ -7,4 +7,9 @@
     <string name="buttonPressMe">Presse-moi</string>
     <string name="checkBox">Regarde ca!</string>
     <string name="welcome_message">Bienvenue!</string>
+    <string name="hint_enter_text">Entrez le texte</string>
+    <string name="buttonAddTask">Ajouter</string>
+    <string name="switch_urgent">urgent</string>
+
+
 </resources>

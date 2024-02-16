@@ -8,4 +8,9 @@
     <string name="checkBox">Check this out!</string>
     <string name="imageButton" translatable="false">Flag</string>
     <string name="welcome_message">Welcome!</string>
+    <string name="hint_enter_text">Type Here</string>
+    <string name="buttonAddTask">Add</string>
+    <string name="switch_urgent">urgent</string>
+
+
 </resources>
