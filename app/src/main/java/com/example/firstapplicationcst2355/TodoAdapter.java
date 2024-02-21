@@ -46,7 +46,7 @@ public class TodoAdapter extends BaseAdapter {
         TodoItem todoItem = todoList.get(position);
 
         TextView textView = view.findViewById(R.id.todoTextView);
-        textView.setText(todoItem.getText());
+        textView.setText(todoItem.getTask());
 
         if (todoItem.isUrgent()) {
             view.setBackgroundColor(Color.RED);

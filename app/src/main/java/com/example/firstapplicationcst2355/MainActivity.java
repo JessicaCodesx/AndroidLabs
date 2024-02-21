@@ -18,11 +18,13 @@ public class MainActivity extends AppCompatActivity {
 
     private List<TodoItem> todoList;
     private TodoAdapter todoAdapter;
+    private Database database;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        database = new Database(this);
 
         //initialize list and adapter
         todoList = new ArrayList<>();
@@ -40,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
         listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                deleteTodo(position);
                 showDeleteAlertDialog(position);
                 return true;
             }
@@ -55,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
                 todoList.add(newTodo);
                 editText.getText().clear();
                 todoAdapter.notifyDataSetChanged();
+                database.addTodo(newTodo);
             }
         });
     }
@@ -69,11 +73,17 @@ public class MainActivity extends AppCompatActivity {
             todoList.remove(position);
             todoAdapter.notifyDataSetChanged();
             Toast.makeText(MainActivity.this, "Item deleted", Toast.LENGTH_SHORT).show();
+            deleteTodo(position);
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> {
         });
 
         builder.show();
+    }
+
+    //to delete todo from database
+    private void deleteTodo(int position) {
+        database.deleteTodo(todoList.get(position));
     }
 }
