@@ -1,89 +1,146 @@
 package com.example.firstapplicationcst2355;
-import android.os.Bundle;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.Switch;
-import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.util.ArrayList;
-import java.util.List;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
 
-    private List<TodoItem> todoList;
-    private TodoAdapter todoAdapter;
-    private Database database;
+    private ImageView imageView;
+    private ProgressBar progressBar;
+    private Bitmap result;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        database = new Database(this);
 
-        //initialize list and adapter
-        todoList = new ArrayList<>();
-        todoAdapter = new TodoAdapter(this, todoList);
+        imageView = findViewById(R.id.image);
+        progressBar = findViewById(R.id.progress);
 
-        //find references to attributes
-        ListView listView = findViewById(R.id.listViewTasks);
-        EditText editText = findViewById(R.id.editTextTask);
-        Switch urgentSwitch = findViewById(R.id.switchUrgent);
-        Button addButton = findViewById(R.id.buttonAddTask);
-
-        listView.setAdapter(todoAdapter);
-
-        // setOnItemLongClickListener for deleting a task
-        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                deleteTodo(position);
-                showDeleteAlertDialog(position);
-                return true;
-            }
-        });
-
-        // listener for add button
-        addButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String todoText = editText.getText().toString();
-                boolean isUrgent = urgentSwitch.isChecked();
-                TodoItem newTodo = new TodoItem(todoText, isUrgent);
-                todoList.add(newTodo);
-                editText.getText().clear();
-                todoAdapter.notifyDataSetChanged();
-                database.addTodo(newTodo);
-            }
-        });
+        new Images().execute();
     }
 
-    private void showDeleteAlertDialog(final int position) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Do you want to delete this?");
-        builder.setMessage("The selected row is: " + position);
+    //inner class for cat photos
+    private class Images extends AsyncTask<Void, Integer, Bitmap> {
+        @Override
+        protected Bitmap doInBackground(Void... voids) {
+            while (!isCancelled()) {
+                try {
+                    URL jsonUrl = new URL("https://cataas.com/cat?json=true");
+                    HttpURLConnection jsonConnection = (HttpURLConnection) jsonUrl.openConnection();
+                    jsonConnection.connect();
 
-        builder.setPositiveButton("Delete", (dialog, which) -> {
-            // remove item
-            todoList.remove(position);
-            todoAdapter.notifyDataSetChanged();
-            Toast.makeText(MainActivity.this, "Item deleted", Toast.LENGTH_SHORT).show();
-            deleteTodo(position);
-        });
+                    InputStream jsonInput = jsonConnection.getInputStream();
+                    String jsonString = convertStreamToString(jsonInput);
 
-        builder.setNegativeButton("Cancel", (dialog, which) -> {
-        });
+                    //oarse JSON for _id
+                    JSONObject json = new JSONObject(jsonString);
+                    String catID = null;
 
-        builder.show();
-    }
+                    if (json.has("_id")) {
+                        catID = json.getString("_id");
 
-    //to delete todo from database
-    private void deleteTodo(int position) {
-        database.deleteTodo(todoList.get(position));
+                        //construct image URL based on _id
+                        String catUrl = "https://cataas.com/cat/" + catID;
+
+                        //check if image exists locally
+                        File imageFile = new File(getFilesDir(), catID + ".jpg");
+                        if (imageFile.exists()) {
+                            //load the local image
+                            result = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
+                        } else {
+                            //download image from URL
+                            URL imageUrl = new URL(catUrl);
+                            HttpURLConnection imageConnection = (HttpURLConnection) imageUrl.openConnection();
+                            imageConnection.connect();
+
+                            InputStream imageInput = imageConnection.getInputStream();
+                            result = BitmapFactory.decodeStream(imageInput);
+
+                            //save
+                            saveImageToDevice(result, catID);
+
+                            //simulate progress update
+                            for (int i = 0; i < 100; i++) {
+                                try {
+                                    publishProgress(i);
+                                    Thread.sleep(30);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    } else {
+                        System.out.println("Error");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                //sleep before the next
+                try {
+                    Thread.sleep(20000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            //update progress bar with progress value
+            int progressValue = values[0];
+            progressBar.setProgress(progressValue);
+
+            //if a new cat picture is selected, update the image view
+            if (progressValue == 0) {
+                imageView.setImageBitmap(result);
+            }
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            imageView.setImageBitmap(result);
+        }
+
+        private void saveImageToDevice(Bitmap bitmap, String catID) {
+            FileOutputStream outputStream = null;
+            try {
+                outputStream = openFileOutput(catID + ".jpg", Context.MODE_PRIVATE);
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (outputStream != null) {
+                        outputStream.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        private String convertStreamToString(InputStream is) {
+            java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+            return s.hasNext() ? s.next() : "";
+        }
     }
 }
