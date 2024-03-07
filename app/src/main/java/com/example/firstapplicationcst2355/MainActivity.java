@@ -1,146 +1,117 @@
 package com.example.firstapplicationcst2355;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ListView;
 
+import androidx.appcompat.app.AppCompatActivity;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 
 public class MainActivity extends AppCompatActivity {
-
-    private ImageView imageView;
-    private ProgressBar progressBar;
-    private Bitmap result;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        imageView = findViewById(R.id.image);
-        progressBar = findViewById(R.id.progress);
-
-        new Images().execute();
+        //execute the asynctask to fetch data from star wars api
+        new StarWarsApiTask().execute();
     }
 
-    //inner class for cat photos
-    private class Images extends AsyncTask<Void, Integer, Bitmap> {
-        @Override
-        protected Bitmap doInBackground(Void... voids) {
-            while (!isCancelled()) {
-                try {
-                    URL jsonUrl = new URL("https://cataas.com/cat?json=true");
-                    HttpURLConnection jsonConnection = (HttpURLConnection) jsonUrl.openConnection();
-                    jsonConnection.connect();
-
-                    InputStream jsonInput = jsonConnection.getInputStream();
-                    String jsonString = convertStreamToString(jsonInput);
-
-                    //oarse JSON for _id
-                    JSONObject json = new JSONObject(jsonString);
-                    String catID = null;
-
-                    if (json.has("_id")) {
-                        catID = json.getString("_id");
-
-                        //construct image URL based on _id
-                        String catUrl = "https://cataas.com/cat/" + catID;
-
-                        //check if image exists locally
-                        File imageFile = new File(getFilesDir(), catID + ".jpg");
-                        if (imageFile.exists()) {
-                            //load the local image
-                            result = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
-                        } else {
-                            //download image from URL
-                            URL imageUrl = new URL(catUrl);
-                            HttpURLConnection imageConnection = (HttpURLConnection) imageUrl.openConnection();
-                            imageConnection.connect();
-
-                            InputStream imageInput = imageConnection.getInputStream();
-                            result = BitmapFactory.decodeStream(imageInput);
-
-                            //save
-                            saveImageToDevice(result, catID);
-
-                            //simulate progress update
-                            for (int i = 0; i < 100; i++) {
-                                try {
-                                    publishProgress(i);
-                                    Thread.sleep(30);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }
-                    } else {
-                        System.out.println("Error");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-                //sleep before the next
-                try {
-                    Thread.sleep(20000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-            return null;
-        }
+    //fetch data from the star wars api
+    private class StarWarsApiTask extends AsyncTask<Void, Void, String> {
 
         @Override
-        protected void onProgressUpdate(Integer... values) {
-            //update progress bar with progress value
-            int progressValue = values[0];
-            progressBar.setProgress(progressValue);
-
-            //if a new cat picture is selected, update the image view
-            if (progressValue == 0) {
-                imageView.setImageBitmap(result);
-            }
-        }
-
-        @Override
-        protected void onPostExecute(Bitmap bitmap) {
-            imageView.setImageBitmap(result);
-        }
-
-        private void saveImageToDevice(Bitmap bitmap, String catID) {
-            FileOutputStream outputStream = null;
+        protected String doInBackground(Void... voids) {
             try {
-                outputStream = openFileOutput(catID + ".jpg", Context.MODE_PRIVATE);
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    if (outputStream != null) {
-                        outputStream.close();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
+                URL url = new URL("https://swapi.dev/api/people/?format=json");
+
+                //open connection
+                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+
+                //input stream to a string
+                InputStream inputStream = urlConnection.getInputStream();
+                Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+                if (scanner.hasNext()) {
+                    return scanner.next();
+                } else {
+                    return null;
                 }
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
             }
         }
 
-        private String convertStreamToString(InputStream is) {
-            java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
-            return s.hasNext() ? s.next() : "";
+        @Override
+        protected void onPostExecute(String result) {
+            super.onPostExecute(result);
+
+            //parse the response and get data
+            try {
+                JSONObject jsonResult = new JSONObject(result);
+                JSONArray characters = jsonResult.getJSONArray("results");
+
+                // get names and start the adapter
+                List<String> characterNames = new ArrayList<>();
+                for (int i = 0; i < characters.length(); i++) {
+                    JSONObject character = characters.getJSONObject(i);
+                    String name = character.getString("name");
+                    characterNames.add(name);
+                }
+
+                //create instance of adapter
+                CharacterListAdapter adapter = new CharacterListAdapter(MainActivity.this, characterNames);
+                ListView listView = findViewById(R.id.listView);
+
+                //set the adapter
+                listView.setAdapter(adapter);
+
+                //set an listener for listview
+                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                        String selectedCharacter = (String) parent.getItemAtPosition(position);
+
+                        //check phone or tablet
+                        View frameLayout = findViewById(R.id.frameLayout);
+
+                        if (frameLayout == null) {
+                            //phone: start empty activity and pass relevant information in a bundle
+                            Intent intent = new Intent(MainActivity.this, EmptyActivity.class);
+                            intent.putExtra("selectedCharacter", selectedCharacter);
+                            startActivity(intent);
+                        } else {
+                            //tablet:replace the frame with details fragment
+                            DetailsFragment detailsFragment = new DetailsFragment();
+                            Bundle bundle = new Bundle();
+                            bundle.putString("selectedCharacter", selectedCharacter);
+                            detailsFragment.setArguments(bundle);
+
+                            getSupportFragmentManager().beginTransaction()
+                                    .replace(R.id.frameLayout, detailsFragment)
+                                    .addToBackStack(null)
+                                    .commit();
+                        }
+                    }
+                });
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

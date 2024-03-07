@@ -11,6 +11,8 @@
     <string name="hint_enter_text">Type Here</string>
     <string name="buttonAddTask">Add</string>
     <string name="switch_urgent">urgent</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 
 
 </resources>
